@@ -16,16 +16,19 @@ Minim minim;
 //AudioPlayer player;
 FFT fft ;
 AudioOutput out;
-AudioInput in;
+AudioInput line_in;
 WindowFunction newWindow = FFT.NONE;
 
-
+int reduce_spheres = 200;
 
 
 PShape s, temps, sbackup ;
 float fheight;
 float fwidth;
-boolean locked;
+boolean unlocked         = false;
+boolean show_goat        = false;
+boolean show_one         = true;
+boolean show_all_spheres = false;
 boolean video = false;
 PVector pos = new PVector(0,0,0);
 long seedpara;
@@ -43,10 +46,37 @@ float[] corner_luf = new float[3];
 float[] corner_rlf = new float[3];
 float[] corner_llf = new float[3];
 //
-float depth = -1000;
+float depth   = -1000;
+float time    = 0;
+float delta_t = 0.002;
 //
 
+float normtemps;
 
+float dt = 0.5;
+float[][][] velocity;
+int cutoff = buffer/3;
+float[] center = {fwidth/2 , fheight/2 };
+// -------------------------------------------------------------------------------
+// Numbers for sound processing
+int[] limits        = new int[4]; // must be f_means.length + 1
+float[] f_means     = {0. , 0. , 0.} ;
+float[] f_means_old = new float[3];
+int[] max_freq      = new int[3];
+float[] f_maxs      = new float[3];
+// the difference of the before and actuell sound value (dynamic change) 
+float f_diff        = 0 ;
+// the difference between left and right sound input
+float stereo        = 0;
+// factors that can be controlled by the keyboard -----------
+// they are multiplied to the sound numbers and control the physical parameters
+//     0: , 1: size , 2: damping, 3: magnusfak, 4: drag 
+float[] factors     = {0.05, 0.05 , 0.005 }; // Mat.constant(1.0,5);
+float stereo_fac    = 0.002;
+// scaling of all factors by multiplication of the superfac or (2-supberfac)
+float superfac      = 0.9 ; 
+boolean log_on      = false;
+float clickstart    = 2.5;
 
 void setup() {
   //size(1000, 1000, P3D);
@@ -64,111 +94,52 @@ void setup() {
   //
   s.translate(0,fheight/3);
   s.rotateY(PI/1.4);
+  // not shure how to use push Matrix
+  // pushMatrix();
   
   getGoat();
-  // draw space ---------------------------------------------------
-   // back corners
-  corner_rub[0] = width; corner_rub[1] =0; corner_rub[2] = depth;
-  corner_lub[0] = 0; corner_lub[1] =0; corner_lub[2] = depth;
-  corner_rlb[0] = width; corner_rlb[1] =height; corner_rlb[2] = depth;
-  corner_llb[0] = 0; corner_llb[1] = height; corner_llb[2] = depth;
-  // front corners
-  corner_ruf[0] = width; corner_ruf[1] =0; corner_ruf[2] = 0;
-  corner_luf[0] = 0; corner_luf[1] =0; corner_luf[2] = 0;
-  corner_rlf[0] = width; corner_rlf[1] =height; corner_rlf[2] = 0;
-  corner_llf[0] = 0; corner_llf[1] = height; corner_llf[2] = 0;
-  // ---------------------------------------------------------------
   // for the Sound processing ------
   
   // we pass this to Minim so that it can load files from the data directory
   minim = new Minim(this);                                               
   // construct a LiveInput by giving it an InputStream from minim.                                                  
-  in = minim.getLineIn(); //new LiveInput( inputStream );
-  fft = new FFT( buffer, in.sampleRate() );
-  println(in.sampleRate()); 
+  line_in = minim.getLineIn(); //new LiveInput( inputStream );
+  fft = new FFT( buffer, line_in.sampleRate() );
+  println(line_in.sampleRate()); 
+  
+  //the limits of the frequency separation
+  limits[0] =  1 ;          // start frequency
+  limits[1] =  buffer/200 ; //low frequencies
+  limits[2] =  buffer/6 ;   //mid frequencies
+  limits[3] =  buffer/2 ;   //high frequencies (end frequency)
   
   // -------------------------------
-  
-  for(int i=0;i<buffer;i++){
-    fftmag[i] = 0;
-  }
   
   println(cutoff);
   stroke(255);
   
-} // END SETUP --------------------------------------
-
-
-float[] fftmag = new float[buffer]; 
-float maxmag , maxlowmag, maxhighmag, tempmag, normtemps, maxdiff, meandiff,highfak =5;
-float[] meanhighmag = {0.1 , 0.1};
-float[] meanlowmag = {0.1 , 0.1};
-float clickstart = 15;
-float dt = 0.5;
-float[][][] velocity;
-int cutoff = buffer/3;
-float[] center = {fwidth/2 , fheight/2 };
-
+  
+  
+} // END SETUP ------------------------------------------------------------------
+//
 // DRAW -------------------------------------------------------------------------
 void draw() {
   lights();
   background(0);
-  drawspace(false);
-  // Soud processing ----------------------
-  newWindow = FFT.HANN;
-  fft.window( newWindow );
-  //fourier-Transformation
-  fft.forward( in.mix );
-  maxmag = 0;
-  meanlowmag[1] = 0;
-  meanhighmag[1] = 0;
-  maxdiff = 0;
-  meandiff = 0;
-  maxhighmag = 0;
-  maxlowmag = 0;
-  // loop through the low frequencies -------------
-  for(int n=1;n<cutoff;n++){
-    tempmag = log(fft.getBand(n)+1);
-    meanlowmag[1] += tempmag;
-    maxlowmag = max(maxlowmag,tempmag);
-    // the change in magnitude
-    maxdiff = max(abs(tempmag-fftmag[n]),maxdiff);
-    meandiff += pow(tempmag-fftmag[n],2);
-    fftmag[n] = tempmag;
-    //line(n,tempmag*200,-10,n,0,-10);
-  }
-  
-  meanlowmag[1] /= cutoff;
-  
-  // loop through the high frequencies -------------
-  for(int n=cutoff;n<buffer;n++){
-    tempmag = log(fft.getBand(n)+1);
-    meanhighmag[1] += tempmag;
-    maxhighmag = max(maxhighmag,tempmag);
-    // the change in magnitude
-    maxdiff = max(abs(tempmag-fftmag[n]),maxdiff);
-    meandiff += pow(tempmag-fftmag[n],2);
-    fftmag[n] = tempmag;
-    //line(n,tempmag*200,-10,n,0,-10);
-  }  
-  //line(cutoff,height,-10,cutoff,0,-10);
-  meanhighmag[1] /= (buffer-cutoff) ;
-  meandiff = sqrt(meandiff/(buffer-1));
-  maxdiff /= meanlowmag[0];
-  meanlowmag[0] = (meanlowmag[0]+meanlowmag[1])/2;
-  meanhighmag[1] = pow(meanhighmag[1]*highfak,2);
-  //println("meandiff: " , meandiff);
-  //println("maxdiff: " , maxdiff);
-  //meanhighmag = maxhighmag/10;
-  //meanlowmag = maxlowmag;
-  //meanhighmag =0;
-  maxmag = max(maxlowmag,maxhighmag); 
-  if(maxdiff>clickstart){
+  // time value for the rotation Y of the goat 
+  time = (time + delta_t) % TWO_PI;
+  //drawspace(false);
+  translate(fwidth/2, fheight/2,-100);
+  Get_sound_numbers();
+  // change the seeding if a hich change in the sound is detected
+  //println("f_diff");
+  //println(f_diff);
+  if(f_diff > clickstart){
     back *=-1;
     seedpara +=1;
     noiseSeed(seedpara);
     println("click");
-    println(maxdiff);
+    println(f_diff);
   }
   //println(maxmag, meanmag);
   // --------------------------------------
@@ -177,7 +148,7 @@ void draw() {
   //camera(mouseX, mouseY, (-mouseX+mouseY)*5, fwidth/2, fheight/2, 0, 0, 1, 0);
   //camera(60, 200, 700, fwidth/2, fheight/2, 0, 0, 1, 0);
   //println(mouseX, mouseY, (-mouseX+mouseY)*5);
-  if (locked){
+  if (unlocked){
     //s.rotateZ(( mouseY/fheight + mouseY/fwidth )*PI);
     //s.rotateX(mouseY/fheight*PI);
     //s.rotateY(mouseX/fwidth*PI);
@@ -194,93 +165,49 @@ void draw() {
           velocity[i][j][1] = (origoat[i][j][1]-pos.y)*dt;
           velocity[i][j][2] = (origoat[i][j][2]-pos.z)*dt;
           // global fatness of the goat
-          pos.x = (pos.x-center[0])*(1+0.005*maxlowmag) + velocity[i][j][0]*dt*0.1 +center[0] ;
-          //pos.y = (pos.y-center[1])*(1+0.01*maxlowmag) + velocity[i][j][1]*dt*0.1 +center[1] ;
-          pos.z = (pos.z)*(1+0.005*maxlowmag) + velocity[i][j][2]*dt*0.1;
+          pos.x = (pos.x-center[0])*(1 + 0.02*f_means[0]) + velocity[i][j][0]*dt*0.1 +center[0] ;
+          pos.y = (pos.y-center[1])*(1 + 0.005*f_means[1]) + velocity[i][j][1]*dt*0.1 +center[1] ;
+          pos.z = (pos.z)*          (1 + 0.02*f_means[0]) + velocity[i][j][2]*dt*0.1;
           
-          pos.x += meanlowmag[1]*dt*back*(0.5- noise(pos.x)) + velocity[i][j][0]*dt*0.1 + meanhighmag[1]*randomGaussian();
-          pos.y += meanlowmag[1]*dt*back*(0.5- noise(pos.y)) + velocity[i][j][1]*dt*0.1 + meanhighmag[1]*randomGaussian();
-          pos.z += meanlowmag[1]*dt*back*(0.5- noise(pos.z)) + velocity[i][j][2]*dt*0.1 + meanhighmag[1]*randomGaussian();
+          
+          pos.x += f_maxs[1]*dt*back*(0.5- noise(pos.x)) + velocity[i][j][0]*dt*0.1 + f_maxs[2]*randomGaussian();
+          pos.y += f_maxs[1]*dt*back*(0.5- noise(pos.y)) + velocity[i][j][1]*dt*0.1 + f_maxs[2]*randomGaussian();
+          pos.z += f_maxs[1]*dt*back*(0.5- noise(pos.z)) + velocity[i][j][2]*dt*0.1 + f_maxs[2]*randomGaussian();
           temps.setVertex(j,pos);
           temps.setStroke(0);
           //break;
       }// end inner forloop
     } // end outer forloop
+    rotateY(time + f_means[0]/10);
+    rotateZ(stereo);
+    rotateX(stereo);
+    //s.setStroke(0);
+    //fill(50,10);
+    //s.setFill(color(map(mouseX, 0, width, 0, 255)));
+    shape(s, 0, 0);
   } // end if
-  s.setStroke(0);
-  fill(50);
+  else{
+    if (time>PI){
+      reduce_spheres = max(0,reduce_spheres -5);
+    }
+    // only draw points at the positions of the goat
+    if (show_goat){
+      shape(s,0,0);
+    }
+    draw_balls(reduce_spheres);
+    
+  }
+
   
   //println(s.getVertexCount());
   //println(s.getChildCount());
   //s.rotateY(PI/1000);
-  translate(fwidth/2, fheight/2,-100);
-  shape(s, 0, 0);
+
+
+
   if(video){
     videoExport.saveFrame();
   }
   
 }
 // END DRAW ----------------------------------------------------------------------------------
-void keyPressed() {
-  if (key == 'q') {
-    videoExport.endMovie();
-    exit();
-  }
-  else if(key == 's'){
-    video = !video;
-    videoExport = new VideoExport(this);
-    videoExport.startMovie();
-  }
-  else if (key == 'r') {
-    seedpara +=1;
-    noiseSeed(seedpara);
-    renewGoat();
-  }
-  else if (key == 'b') {
-    // backward motion
-    back *= -1;
-    if (back==1){
-      println("forwards");
-    }
-    else
-    println("backwards");
-  }
-  else if (key == 'n') {
-    seedpara +=1;
-    noiseSeed(seedpara);
-    println("new seeding");
-    println(seedpara);
-  }
-  else if (key == 'k') {
-    clickstart +=0.5;
-    println("clickstart");
-    println(clickstart);
-  }
-  else if (key == 'j') {
-    clickstart -=0.5;
-    println("clickstart");
-    println(clickstart);
-  }
-  else if (key == 'h') {
-    highfak +=0.2;
-    println("highfak");
-    println(highfak);
-  }
-  else if (key == 'g') {
-    highfak -=0.2;
-    println("highfak");
-    println(highfak);
-  }
-}
-
-void mousePressed() {
-  locked = true;
-  if (mouseButton == RIGHT){
-    locked = false;
-  }
-    
-    //println(mouseY/fheight);
-}
-void mouseReleased() {
-  //locked = false;
-}
