@@ -71,7 +71,7 @@ float stereo        = 0;
 // factors that can be controlled by the keyboard -----------
 // they are multiplied to the sound numbers and control the physical parameters
 //     0: , 1: size , 2: damping, 3: magnusfak, 4: drag 
-float[] factors     = {0.05, 0.05 , 0.005 }; // Mat.constant(1.0,5);
+float[] factors     = {0.05, 0.05 , 0.008743586 }; // Mat.constant(1.0,5);
 float stereo_fac    = 0.002;
 // scaling of all factors by multiplication of the superfac or (2-supberfac)
 float superfac      = 0.9 ; 
@@ -80,7 +80,7 @@ float clickstart    = 2.5;
 
 void setup() {
   //size(1000, 1000, P3D);
-  fullScreen(P3D);//, SPAN);
+  fullScreen(P3D,SPAN);//, SPAN);
   // The file "bot.obj" must be in the data folder
   // of the current sketch to load successfully
   s = loadShape("Standing_Goat.obj");
