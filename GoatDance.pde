@@ -10,14 +10,7 @@ VideoExport videoExport;
 
 // variables for the sound processing -----------------------------
 
-int buffer = 1024;
-//soundflowers check out
-Minim minim;
-//AudioPlayer player;
-FFT fft ;
-AudioOutput out;
-AudioInput line_in;
-WindowFunction newWindow = FFT.NONE;
+
 
 int reduce_spheres = 200;
 
@@ -55,7 +48,7 @@ float normtemps;
 
 float dt = 0.5;
 float[][][] velocity;
-int cutoff = buffer/3;
+
 float[] center = {fwidth/2 , fheight/2 };
 // -------------------------------------------------------------------------------
 // Numbers for sound processing
@@ -78,6 +71,9 @@ float superfac      = 0.9 ;
 boolean log_on      = false;
 float clickstart    = 2.5;
 
+
+Sound_Processing Sound = new Sound_Processing();
+
 void setup() {
   //size(1000, 1000, P3D);
   fullScreen(P3D,SPAN);//, SPAN);
@@ -98,24 +94,7 @@ void setup() {
   // pushMatrix();
   
   getGoat();
-  // for the Sound processing ------
   
-  // we pass this to Minim so that it can load files from the data directory
-  minim = new Minim(this);                                               
-  // construct a LiveInput by giving it an InputStream from minim.                                                  
-  line_in = minim.getLineIn(); //new LiveInput( inputStream );
-  fft = new FFT( buffer, line_in.sampleRate() );
-  println(line_in.sampleRate()); 
-  
-  //the limits of the frequency separation
-  limits[0] =  1 ;          // start frequency
-  limits[1] =  buffer/200 ; //low frequencies
-  limits[2] =  buffer/6 ;   //mid frequencies
-  limits[3] =  buffer/2 ;   //high frequencies (end frequency)
-  
-  // -------------------------------
-  
-  println(cutoff);
   stroke(255);
   
   
@@ -130,7 +109,7 @@ void draw() {
   time = (time + delta_t) % TWO_PI;
   //drawspace(false);
   translate(fwidth/2, fheight/2,-100);
-  Get_sound_numbers();
+  Sound.Get_sound_numbers();
   // change the seeding if a hich change in the sound is detected
   //println("f_diff");
   //println(f_diff);
