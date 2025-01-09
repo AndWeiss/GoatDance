@@ -2,7 +2,7 @@
 
 Audio reactive 3-dimensional goat that transforms depneding on from sound input. 
 
-A demonstration can be found here: [yoiutube](https://youtu.be/Fo4SG2BsSMw?si=YPOI_5VvwFycfGu5)
+A demonstration can be found here: [youtube](https://youtu.be/Fo4SG2BsSMw?si=YPOI_5VvwFycfGu5)
 
 In the beginning there is only one sphere (or if you push key '1'),
 when key '2' is pushed, all spheres from the vertexes of the goat appear,
