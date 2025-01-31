@@ -1,3 +1,8 @@
+import ddf.minim.analysis.*;
+import ddf.minim.*;
+import ddf.minim.ugens.*;
+import ddf.minim.spi.*; // for AudioStream
+
 
 class Sound_Processing { 
     //---------------------------
@@ -13,6 +18,17 @@ class Sound_Processing {
     AudioInput line_in;
     WindowFunction newWindow = FFT.NONE;
     int cutoff = buffer/3;
+    //
+    // Numbers for sound processing
+    int[] limits        = new int[4]; // must be f_means.length + 1
+    float[] f_means     = {0. , 0. , 0.} ;
+    float[] f_means_old = new float[3];
+    int[] max_freq      = new int[3];
+    float[] f_maxs      = new float[3];
+    // the difference of the before and actuell sound value (dynamic change) 
+    float f_diff        = 0 ;
+    // the difference between left and right sound input
+    float stereo        = 0;
 
     // initialization -----------------------------------------
     Sound_Processing () {  
