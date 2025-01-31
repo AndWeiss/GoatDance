@@ -82,7 +82,7 @@ void keyPressed(){
       show_one = true;
       break;
     case '2':
-      // show all spheres
+      // show more spheres
       show_all_spheres = true;
       show_one         = false;
       show_goat        = false;
@@ -99,6 +99,7 @@ void keyPressed(){
       show_goat        = false;
       show_one         = false;
       show_all_spheres = false;
+      time             = 0;
       break;
     }
   println("factors");

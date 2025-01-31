@@ -1,8 +1,8 @@
 void renewGoat(){
-  s = loadShape("Standing_Goat.obj");
-  s.rotate(PI);
-  s.scale(70);
+  goat_shape = loadShape("Standing_Goat.obj");
+  goat_shape.rotate(PI);
+  goat_shape.scale(70);
   //
-  s.translate(0,fheight/3);
-  s.rotateY(PI/4);
+  goat_shape.translate(0,fheight/3);
+  goat_shape.rotateY(PI/4);
 }
